@@ -1,0 +1,73 @@
+version: '3.5'
+
+# https://dockerfile.readthedocs.io/en/latest/content/DockerImages/dockerfiles/php-apache-dev.html
+services:
+  #  placy / outdoor
+  #  lub / indoor
+  # Apache + PHP 7.4
+  php:
+    image: webdevops/php-apache-dev:8.3
+    #user: 1000:1000
+    container_name: "${PROJECT_NAME}_php"
+    networks:
+      - default
+    working_dir: ${PROJECT_ROOT}
+    environment: ['WEB_DOCUMENT_ROOT=${PROJECT_ROOT}/www',
+                  'WEB_ALIAS_DOMAIN=ranger.sk',
+                  'WEB_DOCUMENT_INDEX=${PROJECT_ROOT}/www/index.php',
+                  'PHP_IDE_CONFIG=serverName=127.0.0.1',
+                  'PHP_DEBUGGER=xdebug',
+                  'XDEBUG_REMOTE_AUTOSTART=1',
+                  'XDEBUG_REMOTE_ENABLE=1',
+                  'XDEBUG_REMOTE_CONNECT_BACK=0',
+                  'XDEBUG_REMOTE_PORT=9000',
+                  'XDEBUG_IDEKEY=PHPSTORM']
+    volumes:
+      - ./:${PROJECT_ROOT}:rw
+      - ./php.ini:/opt/docker/etc/php/php.ini
+    ports:
+      - 80:80
+      - 443:443
+      - 681:80 #RANGER SK
+    depends_on:
+      - mariadb
+    links:
+      - mariadb
+
+  # Database
+  mariadb:
+    image: mariadb:10.4.2
+    container_name: "${PROJECT_NAME}_mariadb"
+    networks:
+      - default
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "root"
+      MYSQL_DATABASE: "${PROJECT_NAME}"
+    ports:
+      - 3306:3306
+
+  # PHPMyAdmin
+  pma:
+    image: phpmyadmin/phpmyadmin:4.7
+    container_name: "${PROJECT_NAME}_pma"
+    networks:
+      - default
+    depends_on:
+      - mariadb
+    external_links:
+      - mariadb:db
+    ports:
+      - 8080:80
+
+
+# Bridge to access the server
+networks:
+  default:
+    name: ${PROJECT_NAME}_network
+
+# Data is stored in Docker temp files
+volumes:
+  mariadb_data:
+    name: ${PROJECT_NAME}_mariadb_data
